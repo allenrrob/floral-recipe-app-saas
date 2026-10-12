@@ -13,4 +13,7 @@ __pycache__/
 *.pyc
 
 .env
+<<<<<<< HEAD
 .env.example
+=======
+>>>>>>> 5fe517c (created .env file to run app)
