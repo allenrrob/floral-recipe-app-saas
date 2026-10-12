@@ -90,6 +90,33 @@ body {
     }
 }
 
+.ingredient-edit-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.75rem;
+    align-items: center;
+    width: 100%;
+    margin: 0.5rem 0;
+
+    input,
+    select {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 0.6rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .ingredient-edit-actions {
+        grid-column-start: 1;
+        grid-column-end: -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
 .form-stacked {
     display: flex;
     flex-direction: column;
@@ -410,6 +437,59 @@ button,
                 align-items: center;
                 margin-left: 0;
             }
+
+            .nav-logout {
+                display: inline-flex;
+                margin: 0 0 0 1.25rem;
+            }
+
+            .nav-logout-button {
+                min-height: 36px;
+                padding: 0.3rem 0.7rem;
+                background: transparent;
+                border: 1px solid rgba(255, 255, 255, 0.7);
+            }
+
+            .flash-message {
+                margin-bottom: 1rem;
+                padding: 0.8rem 1rem;
+                border-radius: 6px;
+                background: #e0f2fe;
+                color: #0c4a6e;
+            }
+
+            .flash-error {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            .auth-card {
+                max-width: 480px;
+                margin: 2rem auto;
+                padding: 1.5rem;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+            }
+
+            .auth-form {
+                display: grid;
+                gap: 0.65rem;
+                margin: 1.25rem 0;
+
+                input {
+                    box-sizing: border-box;
+                    width: 100%;
+                    min-height: 44px;
+                    padding: 0.6rem;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                }
+            }
+
+            .billing-setup-notice {
+                color: #991b1b;
+            }
         }
     }
 
@@ -422,6 +502,10 @@ button,
     .report-header {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .nav-logout {
+        margin-left: 0;
     }
 
     .form-inline input,

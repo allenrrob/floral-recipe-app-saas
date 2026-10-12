@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for
+from flask_login import current_user
 from extensions import db
 import models
 
@@ -17,7 +18,8 @@ def design_fees():
             if name and fee_pct:
                 new_fee = models.DesignType(
                     name=name.strip(), 
-                    design_fee_percentage=float(fee_pct)
+                    design_fee_percentage=float(fee_pct),
+                    workspace_id=current_user.workspace_id,
                 )
                 db.session.add(new_fee)
                 db.session.commit()
@@ -30,7 +32,9 @@ def design_fees():
             fee_pct = request.form.get('design_fee_percentage')
 
             if dt_id and name and fee_pct:
-                dt = models.DesignType.query.get(int(float(dt_id)))
+                dt = models.DesignType.query.filter_by(
+                    id=int(float(dt_id)), workspace_id=current_user.workspace_id
+                ).first()
                 if dt:
                     dt.name = name.strip()
                     dt.design_fee_percentage = float(fee_pct)
@@ -38,5 +42,7 @@ def design_fees():
 
             return redirect(url_for('design_fees.design_fees'))
 
-    all_fees = models.DesignType.query.order_by(models.DesignType.name.asc()).all()
+    all_fees = models.DesignType.query.filter_by(
+        workspace_id=current_user.workspace_id
+    ).order_by(models.DesignType.name.asc()).all()
     return render_template('design_fees.html', fees=all_fees)

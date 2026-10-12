@@ -1,4 +1,7 @@
-from flask import Blueprint, render_template, request
+import math
+
+from flask import Blueprint, abort, render_template, request
+from flask_login import current_user
 
 import models
 
@@ -8,8 +11,12 @@ quick_calculator_bp = Blueprint('quick_calculator', __name__)
 @quick_calculator_bp.route('/quick-calculator', methods=['GET', 'POST'])
 def quick_calculator():
     # Fetch available options for the dropdowns
-    all_ingredients = models.Ingredient.query.order_by(models.Ingredient.name.asc()).all()
-    all_design_types = models.DesignType.query.order_by(models.DesignType.name.asc()).all()
+    all_ingredients = models.Ingredient.query.filter_by(
+        workspace_id=current_user.workspace_id
+    ).order_by(models.Ingredient.name.asc()).all()
+    all_design_types = models.DesignType.query.filter_by(
+        workspace_id=current_user.workspace_id
+    ).order_by(models.DesignType.name.asc()).all()
 
     # Default results to none and set initial row state
     calculated_results = None
@@ -52,10 +59,23 @@ def quick_calculator():
         # Iterate through remaining paired array entries safely
         for ing_id, qty_str in submitted_rows:
             if ing_id and qty_str:
+                try:
+                    ingredient_id = int(float(ing_id))
+                except (TypeError, ValueError):
+                    abort(400, description="Select a valid ingredient.")
+                ing = models.Ingredient.query.filter_by(
+                    id=ingredient_id, workspace_id=current_user.workspace_id
+                ).first()
+                if ing is None:
+                    abort(404)
                 has_items = True
-                qty = float(qty_str)
-                ing = models.Ingredient.query.get(int(float(ing_id)))
-                if ing and ing.qty_per_pkg > 0:
+                try:
+                    qty = float(qty_str)
+                except (TypeError, ValueError):
+                    abort(400, description="Enter a valid quantity.")
+                if not math.isfinite(qty) or qty <= 0:
+                    abort(400, description="Quantity must be a finite number greater than zero.")
+                if ing.qty_per_pkg > 0:
                     # Calculate single-stem unit cost & markup
                     unit_cost = ing.cost_per_pkg / ing.qty_per_pkg
                     markup = ing.type_info.markup if ing.type_info else 1.0
@@ -66,11 +86,18 @@ def quick_calculator():
 
         # Package results if at least one valid item line exists
         if has_items:
-            design_style = (
-                models.DesignType.query.get(int(float(selected_design_id)))
-                if selected_design_id
-                else None
-            )
+            design_style = None
+            if selected_design_id:
+                try:
+                    parsed_design_id = int(float(selected_design_id))
+                except (TypeError, ValueError):
+                    abort(400, description="Select a valid design style.")
+                design_style = models.DesignType.query.filter_by(
+                    id=parsed_design_id,
+                    workspace_id=current_user.workspace_id,
+                ).first()
+                if design_style is None:
+                    abort(404)
             fee_pct = design_style.design_fee_percentage if design_style else 0.0
 
             design_fee = marked_up_cost * (fee_pct / 100.0)

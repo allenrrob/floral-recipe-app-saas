@@ -1,13 +1,83 @@
+from flask_login import UserMixin
+from sqlalchemy import ForeignKeyConstraint, UniqueConstraint, and_
 from extensions import db
+
+
+class Workspace(db.Model):
+    __tablename__ = "workspaces"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    users = db.relationship("User", backref="workspace", cascade="all, delete-orphan", lazy=True)
+    subscription = db.relationship(
+        "Subscription", backref="workspace", cascade="all, delete-orphan",
+        uselist=False, lazy=True
+    )
+    def __repr__(self):
+        return f"<Workspace {self.name}>"
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), nullable=False, unique=True, index=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    def __repr__(self):
+        return f"<User {self.email}>"
+
+
+class Subscription(db.Model):
+    __tablename__ = "subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(
+        db.Integer, db.ForeignKey("workspaces.id"), nullable=False, unique=True
+    )
+    stripe_customer_id = db.Column(db.String(255), unique=True)
+    stripe_subscription_id = db.Column(db.String(255), unique=True)
+    status = db.Column(db.String(32), nullable=False, default="incomplete")
+    stripe_event_created = db.Column(db.BigInteger)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, server_default=db.func.now(), onupdate=db.func.now()
+    )
+
+    @property
+    def is_active(self):
+        return self.status in {"active", "trialing"}
+
+
+class StripeWebhookEvent(db.Model):
+    __tablename__ = "stripe_webhook_events"
+
+    event_id = db.Column(db.String(255), primary_key=True)
+    received_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
 
 class Vendor(db.Model):
     __tablename__ = 'vendors'
 
     id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
 
-    # Relationship to ingredients provided by this vendor
-    ingredients = db.relationship('Ingredient', backref='vendor', lazy=True)
+    __table_args__ = (UniqueConstraint("workspace_id", "id"),)
+
+    ingredients = db.relationship(
+        "Ingredient",
+        primaryjoin=lambda: and_(
+            Vendor.id == Ingredient.vendor_id,
+            Vendor.workspace_id == Ingredient.workspace_id,
+        ),
+        foreign_keys=lambda: [Ingredient.vendor_id],
+        back_populates="vendor",
+        lazy=True,
+    )
 
     def __repr__(self):
         return f'<Vendor {self.name}>'
@@ -16,11 +86,25 @@ class IngredientType(db.Model):
     __tablename__ = 'ingredient_types'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True) # e.g. Flower, Filler, Supply
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
+    name = db.Column(db.String(50), nullable=False)
     markup = db.Column(db.Float, default=4.0) # Multiplier
 
-    # Relationship to ingredients of this type
-    ingredients = db.relationship('Ingredient', backref='type_info', lazy=True)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id"),
+        UniqueConstraint("workspace_id", "name"),
+    )
+
+    ingredients = db.relationship(
+        "Ingredient",
+        primaryjoin=lambda: and_(
+            IngredientType.id == Ingredient.ingredient_type_id,
+            IngredientType.workspace_id == Ingredient.workspace_id,
+        ),
+        foreign_keys=lambda: [Ingredient.ingredient_type_id],
+        back_populates="type_info",
+        lazy=True,
+    )
 
     def __repr__(self):
         return f'<IngredientType {self.name}>'
@@ -29,11 +113,25 @@ class DesignType(db.Model):
     __tablename__ = 'design_types'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True) # Default, Simple, Complex, Plant etc.
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
+    name = db.Column(db.String(50), nullable=False)
     design_fee_percentage = db.Column(db.Float, default = 20.00)
 
-    # Relationship to products using this design style
-    products = db.relationship('Product', backref='design_style', lazy=True)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id"),
+        UniqueConstraint("workspace_id", "name"),
+    )
+
+    products = db.relationship(
+        "Product",
+        primaryjoin=lambda: and_(
+            DesignType.id == Product.design_type_id,
+            DesignType.workspace_id == Product.workspace_id,
+        ),
+        foreign_keys=lambda: [Product.design_type_id],
+        back_populates="design_style",
+        lazy=True,
+    )
 
     def __repr__(self): 
         return f'<DesignType {self.name}>'
@@ -42,13 +140,54 @@ class Ingredient(db.Model):
     __tablename__ = 'ingredients'
 
     id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     cost_per_pkg = db.Column(db.Float, nullable=False)
     qty_per_pkg = db.Column(db.Float, nullable=False)
 
     # Foreign Keys
-    ingredient_type_id = db.Column(db.Integer, db.ForeignKey('ingredient_types.id'), nullable=False)
-    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+    ingredient_type_id = db.Column(db.Integer, nullable=False)
+    vendor_id = db.Column(db.Integer, nullable=True)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "ingredient_type_id"],
+            ["ingredient_types.workspace_id", "ingredient_types.id"],
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "vendor_id"],
+            ["vendors.workspace_id", "vendors.id"],
+        ),
+    )
+
+    vendor = db.relationship(
+        "Vendor",
+        primaryjoin=lambda: and_(
+            Vendor.id == Ingredient.vendor_id,
+            Vendor.workspace_id == Ingredient.workspace_id,
+        ),
+        foreign_keys=[vendor_id],
+        back_populates="ingredients",
+    )
+    type_info = db.relationship(
+        "IngredientType",
+        primaryjoin=lambda: and_(
+            IngredientType.id == Ingredient.ingredient_type_id,
+            IngredientType.workspace_id == Ingredient.workspace_id,
+        ),
+        foreign_keys=[ingredient_type_id],
+        back_populates="ingredients",
+    )
+    recipe_rows = db.relationship(
+        "ProductIngredient",
+        primaryjoin=lambda: and_(
+            Ingredient.id == ProductIngredient.ingredient_id,
+            Ingredient.workspace_id == ProductIngredient.workspace_id,
+        ),
+        foreign_keys=lambda: [ProductIngredient.ingredient_id],
+        back_populates="ingredient",
+        lazy=True,
+    )
 
     def __repr__(self):
         return f'<Ingredient {self.name}>'
@@ -57,32 +196,88 @@ class ProductIngredient(db.Model):
     __tablename__ = 'product_ingredients'
 
     id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
     quantity = db.Column(db.Float, nullable=False, default=1.0)
 
-    # Foreign Keys
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    ingredient_id = db.Column(db.Integer, db.ForeignKey('ingredients.id'), nullable=False)
+    product_id = db.Column(db.Integer, nullable=False)
+    ingredient_id = db.Column(db.Integer, nullable=False)
 
-    # Relationships to access related objects directly from a recipe row
-    ingredient = db.relationship('Ingredient')
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "product_id"],
+            ["products.workspace_id", "products.id"],
+        ),
+        ForeignKeyConstraint(
+            ["workspace_id", "ingredient_id"],
+            ["ingredients.workspace_id", "ingredients.id"],
+        ),
+    )
+
+    ingredient = db.relationship(
+        "Ingredient",
+        primaryjoin=lambda: and_(
+            Ingredient.id == ProductIngredient.ingredient_id,
+            Ingredient.workspace_id == ProductIngredient.workspace_id,
+        ),
+        foreign_keys=[ingredient_id],
+        back_populates="recipe_rows",
+    )
+    product = db.relationship(
+        "Product",
+        primaryjoin=lambda: and_(
+            Product.id == ProductIngredient.product_id,
+            Product.workspace_id == ProductIngredient.workspace_id,
+        ),
+        foreign_keys=[product_id],
+        back_populates="recipe_items",
+    )
 
     def __repr__(self):
         return f'<ProductIngredient {self.quantity} x {self.ingredient_id}>'
+
 
 class Product(db.Model):
     __tablename__ = 'products'
 
     id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
     product_code = db.Column(db.String(20), nullable=False)
     image_url = db.Column(db.String(255), nullable=True)
     actual_price = db.Column(db.Float, nullable=True)
 
     # Foreign Keys
-    design_type_id = db.Column(db.Integer, db.ForeignKey('design_types.id'), nullable=False)
+    design_type_id = db.Column(db.Integer, nullable=False)
 
-    # Relationship to join table
-    recipe_items = db.relationship('ProductIngredient', backref='product', cascade="all, delete-orphan", lazy=True)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "id"),
+        UniqueConstraint("workspace_id", "product_code"),
+        ForeignKeyConstraint(
+            ["workspace_id", "design_type_id"],
+            ["design_types.workspace_id", "design_types.id"],
+        ),
+    )
+
+    recipe_items = db.relationship(
+        "ProductIngredient",
+        primaryjoin=lambda: and_(
+            Product.id == ProductIngredient.product_id,
+            Product.workspace_id == ProductIngredient.workspace_id,
+        ),
+        foreign_keys=lambda: [ProductIngredient.product_id],
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy=True,
+    )
+    design_style = db.relationship(
+        "DesignType",
+        primaryjoin=lambda: and_(
+            DesignType.id == Product.design_type_id,
+            DesignType.workspace_id == Product.workspace_id,
+        ),
+        foreign_keys=[design_type_id],
+        back_populates="products",
+    )
 
     @property
     def sorted_recipe_items(self):

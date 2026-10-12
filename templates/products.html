@@ -6,6 +6,7 @@
 <details class="creation-drawer">
     <summary class="btn-secondary">New Product +</summary>
     <form method="POST" class="form-stacked">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="create_product">
         <div class="form-row">
             <input type="text" name="name" placeholder="Arrangement Name (e.g. Garden Romance)" required>
@@ -84,6 +85,7 @@
             <!-- Inline Edit Drawer (Hidden by Default) -->
             <div id="edit-form-{{ product.id }}" class="edit-product-container" style="display: none; margin-bottom: 1.5rem; background: #f1f5f9; padding: 1rem; border-radius: 6px;">
                 <form method="POST" action="{{ url_for('products.products', page=pagination.page, q=search_query) }}" class="form-stacked">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="edit_product">
                     <input type="hidden" name="product_id" value="{{ product.id }}">
                     
@@ -109,6 +111,7 @@
 
     <!-- Form: Add Stems to Recipe -->
     <form method="POST" action="{{ url_for('products.products', page=pagination.page, q=search_query) }}" class="form-inline recipe-add-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="add_ingredient">
         <input type="hidden" name="product_id" value="{{ product.id }}">
 
@@ -148,6 +151,7 @@
                 <td>${{ "%.2f"|format((item.ingredient.cost_per_pkg / item.ingredient.qty_per_pkg) * item.quantity) }}</td>
                 <td>
                     <form method="POST" action="{{ url_for('products.products', page=pagination.page, q=search_query) }}" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="delete_recipe_item">
                         <input type="hidden" name="recipe_item_id" value="{{ item.id }}">
                         <button type="submit" class="btn-danger">Remove</button>

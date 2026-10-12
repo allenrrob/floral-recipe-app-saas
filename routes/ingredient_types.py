@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for
+from flask_login import current_user
 from extensions import db
 import models
 
@@ -15,7 +16,9 @@ def ingredient_types():
             name = request.form.get('name')
             markup = request.form.get('markup')
             if name and markup:
-                new_type = models.IngredientType(name=name, markup=float(markup))
+                new_type = models.IngredientType(
+                    name=name, markup=float(markup), workspace_id=current_user.workspace_id
+                )
                 db.session.add(new_type)
                 db.session.commit()
                 return redirect(url_for('ingredient_types.ingredient_types'))
@@ -27,7 +30,9 @@ def ingredient_types():
             markup = request.form.get('markup')
 
             if type_id and name and markup:
-                ing_type = models.IngredientType.query.get(int(float(type_id)))
+                ing_type = models.IngredientType.query.filter_by(
+                    id=int(float(type_id)), workspace_id=current_user.workspace_id
+                ).first()
                 if ing_type:
                     ing_type.name = name.strip()
                     ing_type.markup = float(markup)
@@ -36,5 +41,7 @@ def ingredient_types():
 
             return redirect(url_for('ingredient_types.ingredient_types'))
         
-    all_types = models.IngredientType.query.order_by(models.IngredientType.name.asc()).all()
+    all_types = models.IngredientType.query.filter_by(
+        workspace_id=current_user.workspace_id
+    ).order_by(models.IngredientType.name.asc()).all()
     return render_template('ingredient_types.html', types=all_types)

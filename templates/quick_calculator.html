@@ -5,6 +5,7 @@
 <h2>Quick Arrangement Cost Calculator</h2>
 
 <form method="POST" action="{{ url_for('quick_calculator.quick_calculator') }}" class="form-stacked">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Row count tracker to maintain form state -->
     <input type="hidden" name="row_count" value="{{ row_count }}">
     <button type="submit" name="action" value="calculate" class="visually-hidden" aria-hidden="true" tabindex="-1">Calculate</button>

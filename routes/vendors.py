@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for
+from flask_login import current_user
 from extensions import db
 import models
 
@@ -14,7 +15,7 @@ def vendors():
         if action == 'create_vendor':
             name = request.form.get('name')
             if name:
-                new_vendor = models.Vendor(name=name)
+                new_vendor = models.Vendor(name=name, workspace_id=current_user.workspace_id)
                 db.session.add(new_vendor)
                 db.session.commit()
                 return redirect(url_for('vendors.vendors'))
@@ -24,7 +25,9 @@ def vendors():
             name = request.form.get('name')
 
             if vendor_id and name:
-                vendor = models.Vendor.query.get(int(float(vendor_id)))
+                vendor = models.Vendor.query.filter_by(
+                    id=int(float(vendor_id)), workspace_id=current_user.workspace_id
+                ).first()
                 if vendor:
                     vendor.name = name.strip()
 
@@ -32,16 +35,20 @@ def vendors():
             return redirect(url_for('vendors.vendors'))
 
 
-    all_vendors = models.Vendor.query.order_by(models.Vendor.name.asc()).all()
+    all_vendors = models.Vendor.query.filter_by(
+        workspace_id=current_user.workspace_id
+    ).order_by(models.Vendor.name.asc()).all()
     return render_template('vendors.html', vendors=all_vendors)
 
 
 @vendors_bp.route('/vendors/<int:vendor_id>/inventory')
 def vendor_inventory(vendor_id):
-    vendor = models.Vendor.query.get_or_404(vendor_id)
+    vendor = models.Vendor.query.filter_by(
+        id=vendor_id, workspace_id=current_user.workspace_id
+    ).first_or_404()
     ingredients = (
         models.Ingredient.query
-        .filter_by(vendor_id=vendor.id)
+        .filter_by(vendor_id=vendor.id, workspace_id=current_user.workspace_id)
         .join(models.IngredientType)
         .order_by(models.IngredientType.name.asc(), models.Ingredient.name.asc())
         .all()

@@ -13,6 +13,7 @@
             <a href="{{ url_for('pages.index') }}">Floral Recipe App</a>
         </div>
         <nav class="nav-links">
+            {% if current_user.is_authenticated %}
             <a href="{{ url_for('pages.index') }}">Home</a>
             <a href="{{ url_for('ingredients.ingredients') }}">Ingredients</a>
             <a href="{{ url_for('products.products') }}">Products</a>
@@ -21,10 +22,24 @@
             <a href="{{ url_for('ingredient_types.ingredient_types') }}">Ingredient Types</a>
             <a href="{{ url_for('vendors.vendors') }}">Vendors</a>
             <a href="{{ url_for('pages.profit_margins') }}">Margins</a>
-        </nav>    
+            <a href="{{ url_for('billing.status') }}">Billing</a>
+            <form method="POST" action="{{ url_for('auth.logout') }}" class="nav-logout">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="nav-logout-button">Log out</button>
+            </form>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}">Log in</a>
+            <a href="{{ url_for('auth.signup') }}">Sign up</a>
+            {% endif %}
+        </nav>
     </header>
 
     <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="flash-message flash-{{ category }}" role="status">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
     {% block content %}{% endblock %}
     </main>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>

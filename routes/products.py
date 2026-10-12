@@ -1,6 +1,7 @@
 import math
 
 from flask import Blueprint, abort, render_template, request, redirect, url_for
+from flask_login import current_user
 from extensions import db
 from sqlalchemy import or_
 import models
@@ -26,12 +27,17 @@ def products():
 
             if name and code and design_id:
                 new_product = models.Product(
+                    workspace_id=current_user.workspace_id,
                     name=name,
                     product_code=code,
                     image_url=image_url if image_url else None,
                     actual_price=float(actual_price) if actual_price else None,
                     design_type_id=int(float(design_id))
                 )
+                if not models.DesignType.query.filter_by(
+                    id=new_product.design_type_id, workspace_id=current_user.workspace_id
+                ).first():
+                    abort(404)
                 db.session.add(new_product)
                 db.session.commit()
                 return redirect(url_for('products.products', page=page, q=search_query))
@@ -50,10 +56,19 @@ def products():
                 abort(400, description="Recipe quantity must be a finite number greater than zero.")
 
             recipe_item = models.ProductIngredient(
+                workspace_id=current_user.workspace_id,
                 product_id=parsed_product_id,
                 ingredient_id=parsed_ingredient_id,
                 quantity=quantity,
             )
+            if not models.Product.query.filter_by(
+                id=parsed_product_id, workspace_id=current_user.workspace_id
+            ).first():
+                abort(404)
+            if not models.Ingredient.query.filter_by(
+                id=parsed_ingredient_id, workspace_id=current_user.workspace_id
+            ).first():
+                abort(404)
             db.session.add(recipe_item)
             db.session.commit()
             # Retain search and page params on redirect
@@ -65,7 +80,9 @@ def products():
         elif action == 'delete_recipe_item':
             item_id = request.form.get('recipe_item_id')
             if item_id:
-                item=models.ProductIngredient.query.get(int(float(item_id)))
+                item=models.ProductIngredient.query.filter_by(
+                    id=int(float(item_id)), workspace_id=current_user.workspace_id
+                ).first()
                 if item:
                     db.session.delete(item)
                     db.session.commit()
@@ -82,13 +99,20 @@ def products():
             design_id = request.form.get('design_type_id')
 
             if product_id and name and code and design_id:
-                product = models.Product.query.get(int(float(product_id)))
+                product = models.Product.query.filter_by(
+                    id=int(float(product_id)), workspace_id=current_user.workspace_id
+                ).first()
                 if product: 
+                    parsed_design_id = int(float(design_id))
+                    if not models.DesignType.query.filter_by(
+                        id=parsed_design_id, workspace_id=current_user.workspace_id
+                    ).first():
+                        abort(404)
                     product.name = name.strip()
                     product.product_code = code
                     product.actual_price = float(actual_price) if actual_price else None
                     product.image_url = image_url if image_url else None
-                    product.design_type_id = int(float(design_id))
+                    product.design_type_id = parsed_design_id
                     db.session.commit()
             return redirect(url_for('products.products', page=page, q=search_query))
 
@@ -98,7 +122,7 @@ def products():
     per_page = 25 # Limits display to 25 products per page
 
     # Base query
-    query = models.Product.query
+    query = models.Product.query.filter_by(workspace_id=current_user.workspace_id)
     
     # Apply search filter if query string is present
     if search_query:
@@ -118,8 +142,8 @@ def products():
 
     # Query products on page, all ingredients, and design fee styles
     products_on_page = pagination.items
-    all_ingredients = models.Ingredient.query.order_by(models.Ingredient.name.asc()).all()
-    all_design_types = models.DesignType.query.order_by(models.DesignType.name.asc()).all()
+    all_ingredients = models.Ingredient.query.filter_by(workspace_id=current_user.workspace_id).order_by(models.Ingredient.name.asc()).all()
+    all_design_types = models.DesignType.query.filter_by(workspace_id=current_user.workspace_id).order_by(models.DesignType.name.asc()).all()
 
     return render_template(
         'products.html',

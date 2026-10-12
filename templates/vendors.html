@@ -6,6 +6,7 @@
 <details class="creation-drawer">
     <summary class="btn-secondary">New Vendor +</summary>
     <form method="POST" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="create_vendor">
         <input type="text" name="name" placeholder="Vendor Name (e.g. Mayesh Wholesale)" required>
         <button type="submit">Add Vendor</button>
@@ -40,6 +41,7 @@
         <tr id="edit-row-{{ vendor.id }}" style="display:none; background-color: #f8fafc;">
             <td colspan="5">
                 <form method="POST" class="form-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="edit_vendor">
                     <input type="hidden" name="vendor_id" value="{{ vendor.id }}">
                     <input type="text" name="name" value="{{ vendor.name }}" required placeholder="Vendor Name">

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Billing - Floral Recipe App{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+    <h1>{{ workspace.name }} subscription</h1>
+    {% if subscription and subscription.is_active %}
+    <p>Your subscription is {{ subscription.status }}. Your florist workspace is ready.</p>
+    <form method="POST" action="{{ url_for('billing.portal') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Manage billing</button>
+    </form>
+    {% else %}
+    <p>Your workspace is waiting for an active subscription. Subscribe to unlock inventory, recipes, and pricing tools.</p>
+    {% if portal_configured and subscription and subscription.stripe_customer_id %}
+    <form method="POST" action="{{ url_for('billing.portal') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Manage billing</button>
+    </form>
+    {% elif checkout_configured %}
+    <form method="POST" action="{{ url_for('billing.checkout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Start subscription</button>
+    </form>
+    {% else %}
+    <p class="billing-setup-notice">Billing is not configured yet. Please contact the site administrator.</p>
+    {% endif %}
+    {% endif %}
+</section>
+{% endblock %}
