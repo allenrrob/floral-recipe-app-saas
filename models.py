@@ -26,10 +26,27 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(254), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False, default="admin")
     created_at = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
+
+    @property
+    def is_admin(self):
+        return self.role == "admin"
 
     def __repr__(self):
         return f"<User {self.email}>"
+
+
+class UserInvitation(db.Model):
+    __tablename__ = "user_invitations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    workspace_id = db.Column(db.Integer, db.ForeignKey("workspaces.id"), nullable=False, index=True)
+    email = db.Column(db.String(254), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default="user")
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    accepted_at = db.Column(db.DateTime)
 
 
 class Subscription(db.Model):
@@ -144,6 +161,7 @@ class Ingredient(db.Model):
     name = db.Column(db.String(100), nullable=False)
     cost_per_pkg = db.Column(db.Float, nullable=False)
     qty_per_pkg = db.Column(db.Float, nullable=False)
+    image_filename = db.Column(db.String(100), nullable=True)
 
     # Foreign Keys
     ingredient_type_id = db.Column(db.Integer, nullable=False)

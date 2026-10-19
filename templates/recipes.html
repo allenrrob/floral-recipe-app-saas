@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Recipe Library - Floral Recipe App{% endblock %}
+
+{% block content %}
+<h2>Recipe Library</h2>
+<form method="GET" class="form-inline search-container">
+    <input type="text" name="q" placeholder="Search recipes..." value="{{ search_query }}">
+    <button type="submit">Search</button>
+    {% if search_query %}
+    <a href="{{ url_for('pages.recipes') }}" class="btn-secondary">Clear Search</a>
+    {% endif %}
+</form>
+
+{% for product in products %}
+<section class="product-card">
+    <h3>{{ product.name }} <span class="badge">{{ product.product_code }}</span></h3>
+    {% if product.image_url %}
+    <div class="product-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"></div>
+    {% endif %}
+    <h4>Ingredients</h4>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead><tr><th>Ingredient</th><th>Quantity</th></tr></thead>
+            <tbody>
+                {% for item in product.sorted_recipe_items %}
+                <tr><td>{{ item.ingredient.name }}</td><td>{{ item.quantity }}</td></tr>
+                {% else %}
+                <tr><td colspan="2">No ingredients added to this recipe yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% else %}
+<p>{% if search_query %}No recipes match that search.{% else %}No recipes are available yet.{% endif %}</p>
+{% endfor %}
+{% endblock %}

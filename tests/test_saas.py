@@ -1,7 +1,12 @@
 import os
+import re
 import unittest
+from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
+from openpyxl import Workbook, load_workbook
 os.environ.setdefault("SECRET_KEY", "test-only-secret")
 
 from app import create_app
@@ -169,6 +174,211 @@ class SaaSTestCase(unittest.TestCase):
                 models.Ingredient.query.filter_by(workspace_id=second_workspace).count(),
                 0,
             )
+
+    def test_invited_user_only_sees_recipes_and_suggested_price(self):
+        workspace_id = self.create_account(
+            self.client, "owner@example.test", "Floral Studio"
+        )
+        with self.app.app_context():
+            ingredient_type = models.IngredientType.query.filter_by(
+                workspace_id=workspace_id, name="Standard Flower"
+            ).one()
+            design_type = models.DesignType.query.filter_by(
+                workspace_id=workspace_id
+            ).first()
+            ingredient = models.Ingredient(
+                workspace_id=workspace_id,
+                name="Confidential Rose",
+                cost_per_pkg=20,
+                qty_per_pkg=10,
+                ingredient_type_id=ingredient_type.id,
+            )
+            product = models.Product(
+                workspace_id=workspace_id,
+                name="Private Arrangement",
+                product_code="PRV-01",
+                design_type_id=design_type.id,
+            )
+            db.session.add_all([ingredient, product])
+            db.session.flush()
+            db.session.add(models.ProductIngredient(
+                workspace_id=workspace_id,
+                product_id=product.id,
+                ingredient_id=ingredient.id,
+                quantity=3,
+            ))
+            ingredient_id = ingredient.id
+            design_type_id = design_type.id
+            db.session.commit()
+
+        invitation_response = self.client.post(
+            "/team",
+            data={
+                "action": "invite",
+                "email": "designer@example.test",
+                "role": "user",
+            },
+        )
+        self.assertEqual(invitation_response.status_code, 200)
+        invite_url = re.search(
+            r'value="(http[^"]+)"', invitation_response.get_data(as_text=True)
+        ).group(1)
+        invite_path = urlsplit(invite_url).path
+        invited_client = self.app.test_client()
+        response = invited_client.post(
+            invite_path, data={"password": "a-different-long-password"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/recipes")
+        self.assertEqual(invited_client.get("/login").location, "/recipes")
+        self.assertEqual(invited_client.get("/signup").location, "/recipes")
+        self.assertEqual(invited_client.get("/").location, "/recipes")
+
+        response = invited_client.get("/recipes")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Confidential Rose", response.data)
+        self.assertNotIn(b"Raw Wholesale Cost", response.data)
+        self.assertNotIn(b"Suggested Retail Price", response.data)
+        self.assertEqual(invited_client.get("/ingredients").status_code, 403)
+        self.assertEqual(invited_client.get("/exports/ingredients").status_code, 403)
+        self.assertEqual(invited_client.get("/quick-calculator").status_code, 403)
+
+        calculator = invited_client.get("/designer-calculator")
+        self.assertEqual(calculator.status_code, 200)
+        self.assertNotIn(b"$2.00/unit", calculator.data)
+        self.assertNotIn(b"Labor Fee", calculator.data)
+        result = invited_client.post(
+            "/designer-calculator",
+            data={
+                "action": "calculate",
+                "row_count": "1",
+                "design_type_id": str(design_type_id),
+                "ingredient_id[]": str(ingredient_id),
+                "quantity[]": "3",
+            },
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertIn(b"$25.20", result.data)
+        self.assertNotIn(b"Raw Wholesale Cost", result.data)
+        self.assertNotIn(b"Marked-Up Materials", result.data)
+        self.assertNotIn(b"Design Fee", result.data)
+
+        with self.app.app_context():
+            designer_id = models.User.query.filter_by(
+                email="designer@example.test"
+            ).one().id
+        self.client.post(
+            "/team",
+            data={
+                "action": "change_role",
+                "user_id": str(designer_id),
+                "role": "admin",
+            },
+        )
+        self.assertEqual(invited_client.get("/ingredients").status_code, 200)
+
+    def test_ingredient_photos_excel_import_export_and_margin_metrics(self):
+        workspace_id = self.create_account(
+            self.client, "excel@example.test", "Excel Florist"
+        )
+        with self.app.app_context():
+            ingredient_type = models.IngredientType.query.filter_by(
+                workspace_id=workspace_id, name="Standard Flower"
+            ).one()
+            ingredient_type_id = ingredient_type.id
+
+        response = self.client.post(
+            "/ingredients",
+            data={
+                "action": "create_ingredient",
+                "name": "Test Rose",
+                "cost_per_pkg": "32",
+                "qty_per_pkg": "25",
+                "ingredient_type_id": str(ingredient_type_id),
+                "vendor_id": "",
+                "image": (BytesIO(b"\x89PNG\r\n\x1a\nmock-image"), "rose.png"),
+            },
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            ingredient = models.Ingredient.query.filter_by(
+                workspace_id=workspace_id, name="Test Rose"
+            ).one()
+            ingredient_id = ingredient.id
+            self.assertTrue(ingredient.image_filename)
+            image_path = (
+                Path(self.app.instance_path)
+                / "ingredient-uploads"
+                / str(workspace_id)
+                / ingredient.image_filename
+            )
+        image_response = self.client.get(f"/ingredient-images/{ingredient_id}")
+        self.assertEqual(image_response.status_code, 200)
+        self.assertEqual(image_response.data, b"\x89PNG\r\n\x1a\nmock-image")
+        image_response.close()
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Name", "Category", "Vendor", "Package Cost", "Quantity per Package"])
+        sheet.append(["Test Rose", "Not a real type", "", 100, 10])
+        sheet.append(["Imported Orchid", "Standard Flower", "", 25, 10])
+        upload = BytesIO()
+        workbook.save(upload)
+        upload.seek(0)
+        response = self.client.post(
+            "/imports/ingredients",
+            data={"file": (upload, "ingredients.xlsx")},
+            content_type="multipart/form-data",
+        )
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            imported = models.Ingredient.query.filter_by(
+                workspace_id=workspace_id, name="Imported Orchid"
+            ).one()
+            self.assertEqual(imported.cost_per_pkg, 25)
+            self.assertEqual(
+                models.Ingredient.query.filter_by(
+                    workspace_id=workspace_id, name="Test Rose"
+                ).count(),
+                1,
+            )
+            vendor = models.Vendor(name="Photo Vendor", workspace_id=workspace_id)
+            db.session.add(vendor)
+            db.session.flush()
+            existing_ingredient = models.Ingredient.query.filter_by(
+                workspace_id=workspace_id, name="Test Rose"
+            ).one()
+            existing_ingredient.vendor_id = vendor.id
+            vendor_id = vendor.id
+            db.session.commit()
+
+        export_response = self.client.get("/exports/ingredients")
+        self.assertEqual(export_response.status_code, 200)
+        exported = load_workbook(BytesIO(export_response.data), read_only=True)
+        self.assertEqual(exported.active["A1"].value, "Name")
+        self.assertEqual(exported.active.max_row, 3)
+        export_response.close()
+        for table_name in (
+            "products", "vendors", "ingredient-types", "design-types", "margins"
+        ):
+            response = self.client.get(f"/exports/{table_name}")
+            self.assertEqual(response.status_code, 200, table_name)
+            response.close()
+
+        report = self.client.get(f"/vendors/{vendor_id}/inventory")
+        self.assertIn(b"Test Rose", report.data)
+        self.assertIn(f"/ingredient-images/{ingredient_id}".encode(), report.data)
+        vendor_export = self.client.get(f"/exports/vendors/{vendor_id}")
+        self.assertEqual(vendor_export.status_code, 200)
+        self.assertTrue(vendor_export.data.startswith(b"PK"))
+        vendor_export.close()
+
+        margins = self.client.get("/profit-margins")
+        self.assertEqual(margins.status_code, 200)
+        self.assertNotIn(b"Total Wholesale Value", margins.data)
+        self.assertNotIn(b"Total Retail Value", margins.data)
+        image_path.unlink(missing_ok=True)
 
     def test_signed_stripe_webhook_updates_subscription_idempotently(self):
         workspace_id = self.create_account(

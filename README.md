@@ -19,16 +19,27 @@ The application supports florist workspaces with separate users, inventory, prod
 Every florist-owned record has a `workspace_id`; database relationships and route queries are scoped to the logged-in user's workspace. Billing belongs to a workspace so staff accounts can be added later without changing ownership. The core models are:
 
 1. **`Workspace`**: One florist business and its owned data.
-2. **`User`**: Email and password hash, associated with a workspace.
-3. **`Subscription`**: Workspace billing status and Stripe identifiers.
-4. **`Vendor`**: Supplier information (`id`, `workspace_id`, `name`).
-5. **`IngredientType`**: Category markups (`id`, `workspace_id`, `name`, `markup` multiplier).
-6. **`DesignType`**: Labor/design style fees (`id`, `workspace_id`, `name`, `design_fee_percentage`).
-7. **`Ingredient`**: Stems and supplies scoped to a workspace, type, and optional vendor.
+2. **`User`**: Email, password hash, and workspace-scoped `admin` or `user` access.
+3. **`UserInvitation`**: A single-use, seven-day invitation link for a workspace member.
+4. **`Subscription`**: Workspace billing status and Stripe identifiers.
+5. **`Vendor`**: Supplier information (`id`, `workspace_id`, `name`).
+6. **`IngredientType`**: Category markups (`id`, `workspace_id`, `name`, `markup` multiplier).
+7. **`DesignType`**: Labor/design style fees (`id`, `workspace_id`, `name`, `design_fee_percentage`).
+8. **`Ingredient`**: Stems and supplies scoped to a workspace, type, and optional vendor; ingredient photos are stored under `instance/ingredient-uploads/`.
    * *Calculated:* Unit Cost = `cost_per_pkg / qty_per_pkg`
-8. **`Product`**: Arrangement bases scoped to a workspace and design type.
+9. **`Product`**: Arrangement bases scoped to a workspace and design type.
    * *Calculated Metrics:* Raw Wholesale Cost, Marked-Up Cost, Design Fee, Suggested Retail Price (SRP), Profit Margin %.
-9. **`ProductIngredient`**: Workspace-scoped product recipe rows.
+10. **`ProductIngredient`**: Workspace-scoped product recipe rows.
+
+## Team access, recipe library, and exports
+
+Workspace owners can open **Team Access** to create an invitation link and choose either **Admin** or **User** access. Share the generated link directly with the invitee; it can be used once and expires after seven days. The app does not currently send invitation email. Admins can change a member's access level at any time, and a workspace must retain at least one admin.
+
+Users (designers and sales associates) can view the recipe library and use the separate Quick Calculator page. The recipe library omits costs and prices; the user calculator shows ingredient names and a suggested retail price only. Ingredient, vendor, product editing, reports, exports, and billing are restricted to admins.
+
+Admin data pages include Excel downloads. The Products & Recipes workbook contains product pricing and a separate recipe sheet. The Ingredients page accepts `.xlsx` uploads with **Name**, **Category**, **Package Cost**, and **Quantity per Package** columns; **Vendor** is optional. Category and vendor names must already exist in the workspace. Ingredient names are compared without case sensitivity; existing names are skipped. Invalid rows prevent the workbook from importing any new ingredients.
+
+Vendor inventory reports include ingredient photos and can be printed or downloaded as Excel. Uploaded ingredient images are limited to 5 MB and supported image types. In production, mount `instance/ingredient-uploads/` on persistent storage and include it in backups; local instance storage is not shared across application replicas.
 
 ## Running locally
 
@@ -132,8 +143,3 @@ floral-recipe-app/
     ├── ingredient_types.py
     ├── design_fees.py
     └── quick_calculator.py
-
-    ## TODO:
-    - Add ability to upload images for vendor reports
-    - Add ability to turn db into excel file
-    - Remove metrics total whole sale and total retail value from analytics

@@ -9,6 +9,7 @@ quick_calculator_bp = Blueprint('quick_calculator', __name__)
 
 # --- Quick Calculator ---
 @quick_calculator_bp.route('/quick-calculator', methods=['GET', 'POST'])
+@quick_calculator_bp.route('/designer-calculator', methods=['GET', 'POST'], endpoint='designer_calculator')
 def quick_calculator():
     # Fetch available options for the dropdowns
     all_ingredients = models.Ingredient.query.filter_by(
@@ -106,12 +107,15 @@ def quick_calculator():
 
             # Package results in a dictionary to pass directly into the template
             calculated_results = {
-                'raw_cost': raw_cost,
-                'marked_up_cost': marked_up_cost,
-                'design_fee': design_fee,
                 'srp': srp,
-                'margin': profit_margin
             }
+            if current_user.is_admin:
+                calculated_results.update({
+                    'raw_cost': raw_cost,
+                    'marked_up_cost': marked_up_cost,
+                    'design_fee': design_fee,
+                    'margin': profit_margin
+                })
 
     return render_template(
         'quick_calculator.html',

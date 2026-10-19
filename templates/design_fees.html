@@ -3,6 +3,7 @@
 
 {% block content %}
 <h2>Design Type & Labor Fee Manager</h2>
+<p><a class="btn-secondary" href="{{ url_for('spreadsheets.export_table', table_name='design-types') }}">Download Design Fees Excel</a></p>
 
 <details class="creation-drawer">
     <summary class="btn-secondary">New Design Fee +</summary>

@@ -3,10 +3,13 @@
 
 {% block content %}
 <h2>Ingredient Inventory Manager</h2>
+<p>
+    <a class="btn-secondary" href="{{ url_for('spreadsheets.export_table', table_name='ingredients') }}">Download Ingredients Excel</a>
+</p>
 
 <details class="creation-drawer">
     <summary class="btn-secondary">New Ingredient +</summary>
-    <form method="POST" class="form-stacked">
+    <form method="POST" class="form-stacked" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="create_ingredient">
         <div class="form-row">
@@ -25,9 +28,20 @@
                 <option value="{{ v.id }}">{{ v.name }}</option>
                 {% endfor %}
             </select>
+            <label>Ingredient Photo <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp"></label>
 
             <button type="submit">Add Ingredient</button>
         </div>
+    </form>
+</details>
+
+<details class="creation-drawer">
+    <summary class="btn-secondary">Import Ingredients from Excel</summary>
+    <p>Use an .xlsx file with Name, Category, Package Cost, and Quantity per Package columns. Existing ingredient names are skipped.</p>
+    <form method="POST" action="{{ url_for('spreadsheets.import_ingredients') }}" enctype="multipart/form-data" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="file" accept=".xlsx" required>
+        <button type="submit">Upload Excel</button>
     </form>
 </details>
 
@@ -58,7 +72,12 @@
     <tbody>
         {% for ing in ingredients %}
         <tr>
-            <td><strong>{{ ing.name }}</strong></td>
+            <td>
+                {% if ing.image_filename %}
+                <img src="{{ url_for('ingredients.ingredient_image', ingredient_id=ing.id) }}" alt="{{ ing.name }}" style="width: 48px; height: 48px; object-fit: cover; vertical-align: middle; margin-right: 0.5rem;">
+                {% endif %}
+                <strong>{{ ing.name }}</strong>
+            </td>
             <td>{{ ing.type_info.name if ing.type_info else 'N/A' }}</td>
             <td>{{ ing.vendor.name if ing.vendor else 'None' }}</td>
             <td>${{ "%.2f"|format(ing.cost_per_pkg) }}</td>
@@ -72,7 +91,7 @@
         <!-- Hidden Inline Edit Drawer Row -->
         <tr id="edit-row-{{ ing.id }}" style="display:none; background-color: #f8fafc;">
             <td colspan="7">
-                <form method="POST" action="{{ url_for('ingredients.ingredients', page=pagination.page, q=search_query) }}" class="ingredient-edit-form">
+                <form method="POST" action="{{ url_for('ingredients.ingredients', page=pagination.page, q=search_query) }}" class="ingredient-edit-form" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="edit_ingredient">
                     <input type="hidden" name="ingredient_id" value="{{ ing.id }}">
@@ -91,6 +110,7 @@
                     </select>
                     <input type="number" step="0.01" name="cost_per_pkg" value="{{ ing.cost_per_pkg }}" required placeholder="Pkg Cost ($)">
                     <input type="number" name="qty_per_pkg" value="{{ ing.qty_per_pkg }}" required placeholder="Pkg Qty">
+                    <label>Replace Photo <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp"></label>
 
                     <div class="ingredient-edit-actions">
                         <button type="submit">Save</button>

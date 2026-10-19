@@ -7,7 +7,10 @@
         <h2>{{ vendor.name }} Inventory Report</h2>
         <p>Physical inventory count sheet &mdash; {{ ingredients|length }} items</p>
     </div>
-    <button type="button" class="btn-secondary no-print" onclick="window.print()">Print Report</button>
+    <div class="no-print">
+        <a class="btn-secondary" href="{{ url_for('spreadsheets.export_vendor_report', vendor_id=vendor.id) }}">Download Excel</a>
+        <button type="button" class="btn-secondary" onclick="window.print()">Print Report</button>
+    </div>
 </div>
 
 <div class="table-responsive">
@@ -26,7 +29,12 @@
             {% for ingredient in ingredients %}
             <tr>
                 <td>{{ ingredient.type_info.name if ingredient.type_info else 'N/A' }}</td>
-                <td><strong>{{ ingredient.name }}</strong></td>
+                <td>
+                    {% if ingredient.image_filename %}
+                    <img src="{{ url_for('ingredients.ingredient_image', ingredient_id=ingredient.id) }}" alt="{{ ingredient.name }}" style="width: 64px; height: 64px; object-fit: cover; vertical-align: middle; margin-right: 0.5rem;">
+                    {% endif %}
+                    <strong>{{ ingredient.name }}</strong>
+                </td>
                 <td>{{ ingredient.qty_per_pkg }}</td>
                 <td>${{ "%.2f"|format(ingredient.cost_per_pkg) }}</td>
                 <td class="inventory-write-in"></td>

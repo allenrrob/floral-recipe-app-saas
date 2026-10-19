@@ -6,6 +6,7 @@ from routes.ingredients import ingredients_bp
 from routes.pages import pages_bp
 from routes.products import products_bp
 from routes.quick_calculator import quick_calculator_bp
+from routes.spreadsheets import spreadsheets_bp
 from routes.vendors import vendors_bp
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "pages_bp",
     "products_bp",
     "quick_calculator_bp",
+    "spreadsheets_bp",
     "vendors_bp",
 ]

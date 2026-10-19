@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Team Access - Floral Recipe App{% endblock %}
+
+{% block content %}
+<h2>Team Access</h2>
+<p>Invite designers and sales associates or change the access level of an existing account.</p>
+
+{% if invite_link %}
+<div class="flash-message flash-success" role="status">
+    Invitation created. Copy and share this link; it expires in 7 days:
+    <input type="text" readonly value="{{ invite_link }}" aria-label="Invitation link" onclick="this.select()">
+</div>
+{% endif %}
+
+<details class="creation-drawer" open>
+    <summary class="btn-secondary">Invite a Team Member</summary>
+    <form method="POST" class="form-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="invite">
+        <input type="email" name="email" placeholder="Email address" required>
+        <select name="role" required>
+            <option value="user">User (designer / sales associate)</option>
+            <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Create Invitation Link</button>
+    </form>
+</details>
+
+<h3>Workspace Members</h3>
+<div class="table-responsive">
+    <table class="data-table">
+        <thead><tr><th>Email</th><th>Access Level</th><th>Update</th></tr></thead>
+        <tbody>
+            {% for member in users %}
+            <tr>
+                <td>{{ member.email }}{% if member.id == current_user.id %} (you){% endif %}</td>
+                <td>{{ member.role|title }}</td>
+                <td>
+                    <form method="POST" class="form-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="change_role">
+                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                        <select name="role" aria-label="Access level for {{ member.email }}">
+                            <option value="admin" {% if member.role == 'admin' %}selected{% endif %}>Admin</option>
+                            <option value="user" {% if member.role == 'user' %}selected{% endif %}>User</option>
+                        </select>
+                        <button type="submit">Save</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if invitations %}
+<h3>Pending Invitations</h3>
+<div class="table-responsive">
+    <table class="data-table">
+        <thead><tr><th>Email</th><th>Access Level</th><th>Expires</th></tr></thead>
+        <tbody>
+            {% for invitation in invitations %}
+            <tr><td>{{ invitation.email }}</td><td>{{ invitation.role|title }}</td><td>{{ invitation.expires_at.strftime('%Y-%m-%d') }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

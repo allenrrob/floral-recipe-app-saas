@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, abort, redirect, request, url_for
 from flask_login import current_user
 from extensions import csrf, db, login_manager, migrate
 import models
@@ -13,6 +13,7 @@ from routes import (
     pages_bp,
     products_bp,
     quick_calculator_bp,
+    spreadsheets_bp,
     vendors_bp,
 )
 
@@ -34,6 +35,7 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE") == "1",
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,
         STRIPE_SECRET_KEY=os.environ.get("STRIPE_SECRET_KEY"),
         STRIPE_PRICE_ID=os.environ.get("STRIPE_PRICE_ID"),
         STRIPE_WEBHOOK_SECRET=os.environ.get("STRIPE_WEBHOOK_SECRET"),
@@ -55,6 +57,7 @@ def create_app(test_config=None):
         ingredients_bp,
         products_bp,
         quick_calculator_bp,
+        spreadsheets_bp,
         vendors_bp,
         ingredient_types_bp,
         design_fees_bp,
@@ -74,8 +77,18 @@ def create_app(test_config=None):
             return None
         if request.endpoint in {"auth.login", "auth.signup", "billing.webhook"}:
             return None
+        if request.endpoint == "auth.accept_invitation":
+            return None
         if not current_user.is_authenticated:
             return login_manager.unauthorized()
+        if not current_user.is_admin and request.endpoint not in {
+            "auth.logout",
+            "pages.index",
+            "pages.recipes",
+            "quick_calculator.designer_calculator",
+            "static",
+        }:
+            abort(403)
         if request.endpoint not in {
             "auth.logout",
             "billing.checkout",

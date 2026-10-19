@@ -12,7 +12,12 @@ from models import (
     Vendor,
     Workspace,
 )
+from dotenv import load_dotenv
+
+
 from werkzeug.security import generate_password_hash
+
+load_dotenv()
 
 def seed_database():
     with app.app_context():

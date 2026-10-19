@@ -2,9 +2,9 @@
 {% block title %}Quick Calculator - Floral Recipe App{% endblock %}
 
 {% block content %}
-<h2>Quick Arrangement Cost Calculator</h2>
+<h2>{% if current_user.is_admin %}Quick Arrangement Cost Calculator{% else %}Quick Retail Price Calculator{% endif %}</h2>
 
-<form method="POST" action="{{ url_for('quick_calculator.quick_calculator') }}" class="form-stacked">
+<form method="POST" action="{{ url_for('quick_calculator.quick_calculator' if current_user.is_admin else 'quick_calculator.designer_calculator') }}" class="form-stacked">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Row count tracker to maintain form state -->
     <input type="hidden" name="row_count" value="{{ row_count }}">
@@ -12,12 +12,12 @@
 
     <!-- Labor Style Selection -->
     <div style="margin-bottom: 1.5rem;">
-        <label><strong>Design Style (Labor Fee %):</strong></label>
+        <label><strong>{% if current_user.is_admin %}Design Style (Labor Fee %):{% else %}Design Style:{% endif %}</strong></label>
         <select name="design_type_id" style="padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc; width: 100%; max-width: 400px; margin-top: 0.5rem;">
-            <option value="">Select Labor Fee Style...</option>
+            <option value="">Select {% if current_user.is_admin %}Labor Fee{% else %}Design{% endif %} Style...</option>
             {% for d in design_types %}
             <option value="{{ d.id }}" {% if selected_design_id and selected_design_id|int == d.id|int %}selected{% endif %}>
-                {{ d.name }} ({{ d.design_fee_percentage }}% Labor Fee)
+                {{ d.name }}{% if current_user.is_admin %} ({{ d.design_fee_percentage }}% Labor Fee){% endif %}
             </option>
             {% endfor %}
         </select>
@@ -41,7 +41,7 @@
                         <option value="">Search stem or supply...</option>
                         {% for ing in ingredients %}
                         <option value="{{ ing.id }}" {% if ing_id and ing_id|int == ing.id|int %}selected{% endif %}>
-                            {{ ing.name }} (${{ "%.2f"|format(ing.cost_per_pkg / ing.qty_per_pkg) }}/unit)
+                            {{ ing.name }}{% if current_user.is_admin %} (${{ "%.2f"|format(ing.cost_per_pkg / ing.qty_per_pkg) }}/unit){% endif %}
                         </option>
                         {% endfor %}
                     </select>
@@ -68,6 +68,7 @@
 <!-- Calculated Results Summary -->
 {% if results %}
 <hr style="margin: 2rem 0;">
+{% if current_user.is_admin %}
 <h3>Pricing Breakdown</h3>
 <div class="pricing-summary" style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 1rem;">
     <div class="metric" style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; flex: 1; min-width: 160px;">
@@ -88,5 +89,14 @@
         <span style="display: block; font-size: 0.8rem; color: #0369a1; margin-top: 0.25rem;">Profit Margin: {{ "%.1f"|format(results.margin) }}%</span>
     </div>
 </div>
+{% else %}
+<h3>Suggested Retail Price</h3>
+<div class="pricing-summary">
+    <div class="metric highlight">
+        <label>Suggested Retail Price (SRP)</label>
+        <strong>${{ "%.2f"|format(results.srp) }}</strong>
+    </div>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

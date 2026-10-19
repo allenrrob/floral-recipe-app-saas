@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Accept Invitation - Floral Recipe App{% endblock %}
+
+{% block content %}
+<h2>Accept Workspace Invitation</h2>
+<p>Invitation for <strong>{{ email }}</strong>.</p>
+<p>Choose a password with at least 12 characters to access the workspace.</p>
+<form method="POST" class="form-stacked">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="password">Password</label>
+    <input id="password" type="password" name="password" minlength="12" required autocomplete="new-password">
+    <button type="submit">Create Account</button>
+</form>
+{% endblock %}

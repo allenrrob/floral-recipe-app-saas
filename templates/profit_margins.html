@@ -3,20 +3,12 @@
 
 {% block content %}
 <h2>Profit Margin Analytics</h2>
+<p><a class="btn-secondary" href="{{ url_for('spreadsheets.export_table', table_name='margins') }}">Download Margin Report Excel</a></p>
 
-<!-- Shop-wide summary metrics -->
 <div class="pricing-summary">
     <div class="metric">
         <label>Total Products</label>
         <span>{{ products|length }}</span>
-    </div>
-    <div class="metric">
-        <label>Total Wholesale Value</label>
-        <span>${{ "%.2f"|format(total_wholesale) }}</span>
-    </div>
-    <div class="metric highlight">
-        <label>Total Retail Value</label>
-        <span>${{ "%.2f"|format(total_retail) }}</span>
     </div>
     <div class="metric">
         <label>Average Margin</label>

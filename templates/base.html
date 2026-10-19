@@ -14,15 +14,25 @@
         </div>
         <nav class="nav-links">
             {% if current_user.is_authenticated %}
+            {% if current_user.is_admin %}
             <a href="{{ url_for('pages.index') }}">Home</a>
             <a href="{{ url_for('ingredients.ingredients') }}">Ingredients</a>
             <a href="{{ url_for('products.products') }}">Products</a>
-            <a href="{{ url_for('quick_calculator.quick_calculator') }}">Quick Calculator</a>
+            <a href="{{ url_for('pages.recipes') }}">Recipe Library</a>
+            <a href="{{ url_for('auth.team') }}">Team Access</a>
             <a href="{{ url_for('design_fees.design_fees') }}">Design Fees</a>
             <a href="{{ url_for('ingredient_types.ingredient_types') }}">Ingredient Types</a>
             <a href="{{ url_for('vendors.vendors') }}">Vendors</a>
             <a href="{{ url_for('pages.profit_margins') }}">Margins</a>
             <a href="{{ url_for('billing.status') }}">Billing</a>
+            {% else %}
+            <a href="{{ url_for('pages.recipes') }}">Recipes</a>
+            {% endif %}
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('quick_calculator.quick_calculator') }}">Quick Calculator</a>
+            {% else %}
+            <a href="{{ url_for('quick_calculator.designer_calculator') }}">Quick Calculator</a>
+            {% endif %}
             <form method="POST" action="{{ url_for('auth.logout') }}" class="nav-logout">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="nav-logout-button">Log out</button>
