@@ -132,3 +132,6 @@ floral-recipe-app/
     ├── ingredient_types.py
     ├── design_fees.py
     └── quick_calculator.py
+
+    ## TODO:
+    - Add ability to upload images for vendor reports
