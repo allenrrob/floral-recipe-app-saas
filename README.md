@@ -135,3 +135,5 @@ floral-recipe-app/
 
     ## TODO:
     - Add ability to upload images for vendor reports
+    - Add ability to turn db into excel file
+    - Remove metrics total whole sale and total retail value from analytics
