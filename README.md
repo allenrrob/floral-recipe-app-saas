@@ -143,3 +143,6 @@ floral-recipe-app/
     ├── ingredient_types.py
     ├── design_fees.py
     └── quick_calculator.py
+
+# TODO:
+- There is a bug where if you try to log in with a user account you get forbidden  and then when you try to back in with an admin account it gets the user account permissions
