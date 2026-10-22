@@ -14,13 +14,13 @@
 {% for product in products %}
 <section class="product-card">
     <h3>{{ product.name }} <span class="badge">{{ product.product_code }}</span></h3>
+    <div class="recipe-layout">
     {% if product.image_url %}
-    <div class="product-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"></div>
+    <div class="recipe-image"><img src="{{ product.image_url }}" alt="{{ product.name }}"></div>
     {% endif %}
-    <h4>Ingredients</h4>
     <div class="table-responsive">
         <table class="data-table">
-            <thead><tr><th>Ingredient</th><th>Quantity</th></tr></thead>
+            <thead><tr><th colspan="2">Recipe</th></tr><tr><th>Ingredient</th><th>Quantity</th></tr></thead>
             <tbody>
                 {% for item in product.sorted_recipe_items %}
                 <tr><td>{{ item.ingredient.name }}</td><td>{{ item.quantity }}</td></tr>
@@ -29,6 +29,7 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     </div>
 </section>
 {% else %}

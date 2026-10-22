@@ -116,16 +116,18 @@
         <input type="hidden" name="action" value="add_ingredient">
         <input type="hidden" name="product_id" value="{{ product.id }}">
 
-        <select name="ingredient_id" class="searchable-select" required>
-            <option value="" disabled selected>Search Stem / Supply...</option>
-            {% for ing in ingredients %}
-            <option value="{{ ing.id }}">
-                {{ ing.name }} (${{ "%.2f"|format(ing.cost_per_pkg / ing.qty_per_pkg) }}/unit)
-            </option>
-            {% endfor %}
-        </select>
+        <div class="recipe-ingredient-field">
+            <select name="ingredient_id" class="searchable-select" required>
+                <option value="" disabled selected>Search Stem / Supply...</option>
+                {% for ing in ingredients %}
+                <option value="{{ ing.id }}">
+                    {{ ing.name }} (${{ "%.2f"|format(ing.cost_per_pkg / ing.qty_per_pkg) }}/unit)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
 
-        <input type="number" name="quantity" placeholder="Stem Qty" min="0.1" step="0.1" required>
+        <input class="recipe-quantity" type="number" name="quantity" placeholder="Stem Qty" min="0.1" step="0.1" required>
         <button type="submit">+ Add Unit</button>
     </form> 
 
