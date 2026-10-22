@@ -230,9 +230,42 @@ class SaaSTestCase(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.location, "/recipes")
-        self.assertEqual(invited_client.get("/login").location, "/recipes")
+        self.assertEqual(invited_client.get("/login").status_code, 200)
         self.assertEqual(invited_client.get("/signup").location, "/recipes")
         self.assertEqual(invited_client.get("/").location, "/recipes")
+
+        invited_client.post("/logout")
+        response = invited_client.post(
+            "/login",
+            data={
+                "email": "designer@example.test",
+                "password": "a-different-long-password",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/recipes")
+        self.assertEqual(invited_client.get("/ingredients").status_code, 403)
+
+        response = invited_client.post(
+            "/login",
+            data={
+                "email": "owner@example.test",
+                "password": "a-long-test-password",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/billing/status")
+        self.assertEqual(invited_client.get("/ingredients").status_code, 200)
+
+        response = invited_client.post(
+            "/login",
+            data={
+                "email": "designer@example.test",
+                "password": "a-different-long-password",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "/recipes")
 
         response = invited_client.get("/recipes")
         self.assertEqual(response.status_code, 200)

@@ -98,11 +98,70 @@ Checkout activation and cancellation are driven by signed webhook events, not by
 
 ## Deployment checklist
 
-* Set a strong, stable `SECRET_KEY`, `SESSION_COOKIE_SECURE=1`, and PostgreSQL `DATABASE_URL`.
+* Set a strong, stable `SECRET_KEY`, `SESSION_COOKIE_SECURE=1`, and a production database URL. PostgreSQL is recommended for multi-instance deployments; the single-instance PythonAnywhere example below uses SQLite.
 * Keep Stripe credentials in the hosting provider's secret manager.
 * Run `flask --app app db upgrade` during deployment and configure database backups.
 * Serve behind HTTPS using Gunicorn (for example `gunicorn app:app`).
 * Configure Stripe webhook delivery and test signup, payment, cancellation, and tenant isolation before launch.
+
+## Deploying on PythonAnywhere
+
+These steps describe a single-instance deployment. Confirm that your PythonAnywhere account supports the Python version and outbound connections your app needs; Stripe billing also needs a public HTTPS site and a reachable webhook endpoint.
+
+1. In a PythonAnywhere **Bash console**, clone the repository and create a virtual environment using a Python version supported by your account:
+
+   ```sh
+   git clone <your-repository-url> ~/floral-recipe-app-saas
+   cd ~/floral-recipe-app-saas
+   mkvirtualenv --python=/usr/bin/python3.12 floral-recipe-app
+   pip install -r requirements.txt
+   mkdir -p instance/ingredient-uploads
+   ```
+
+   If Python 3.12 is not available for your account, select an available version supported by the dependencies and update the virtualenv path/version accordingly.
+
+2. Generate a secret key in the console:
+
+   ```sh
+   python -c 'import secrets; print(secrets.token_hex(32))'
+   ```
+
+   Keep the value private and stable across restarts. For this single-instance example, SQLite stores data under the project `instance/` directory, which must remain on persistent storage. Back up both `instance/app.db` and `instance/ingredient-uploads/`. For a multi-instance or higher-availability deployment, configure a supported shared database and persistent file storage instead.
+
+3. In the PythonAnywhere **Web** tab, create a **Manual configuration** web app with the same Python version as the virtualenv. Set the source code and working directory to `/home/<your-username>/floral-recipe-app-saas`, and set the virtualenv to `/home/<your-username>/.virtualenvs/floral-recipe-app`. Add the static file mapping `/static/` to `/home/<your-username>/floral-recipe-app-saas/static`.
+
+4. Edit the WSGI configuration file linked from the Web tab. Set the environment before importing the Flask application (replace the username and generated key):
+
+   ```python
+   import os
+   import sys
+
+   project_home = "/home/<your-username>/floral-recipe-app-saas"
+   if project_home not in sys.path:
+       sys.path.insert(0, project_home)
+
+   os.environ["SECRET_KEY"] = "<your-generated-secret>"
+   os.environ["DATABASE_URL"] = (
+       "sqlite:////home/<your-username>/floral-recipe-app-saas/instance/app.db"
+   )
+   os.environ["SESSION_COOKIE_SECURE"] = "1"
+
+   from app import app as application
+   ```
+
+   Do not commit this WSGI file or secret to the repository. The WSGI process does not automatically read the project's `.env` file. If enabling Stripe, set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET` in this same environment before importing `app`.
+
+5. Before serving the site, run the migrations from a Bash console with the virtualenv active and the same settings used by WSGI:
+
+   ```sh
+   cd ~/floral-recipe-app-saas
+   export SECRET_KEY='<the-same-generated-secret>'
+   export DATABASE_URL='sqlite:////home/<your-username>/floral-recipe-app-saas/instance/app.db'
+   export SESSION_COOKIE_SECURE=1
+   flask --app app db upgrade
+   ```
+
+6. In the Web tab, configure HTTPS, then click **Reload**. Test signup, admin and user logins, account switching, image uploads, and workspace access. For Stripe, configure `https://<your-domain>/billing/webhook` in Stripe and subscribe to the webhook events listed above. Use Stripe test credentials first.
 
 This is a first subscription foundation: production launch should also include email verification, password reset email delivery, rate limiting, operational monitoring, and a tested data migration/backup plan for any old personal database.
 

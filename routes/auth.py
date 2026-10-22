@@ -195,9 +195,6 @@ def signup():
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        return redirect(_role_home(current_user))
-
     if request.method == "POST":
         email = request.form.get("email", "").strip().casefold()
         password = request.form.get("password", "")
@@ -206,8 +203,9 @@ def login():
             flash("Email or password was incorrect.", "error")
             return render_template("login.html"), 401
 
+        logout_user()
         login_user(user)
-        return redirect(url_for("billing.status"))
+        return redirect(_role_home(user))
 
     return render_template("login.html")
 
