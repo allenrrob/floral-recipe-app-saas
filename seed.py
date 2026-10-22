@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables BEFORE importing app or initializing Flask
+load_dotenv()
 
 from app import app, db
 from models import (
@@ -12,12 +16,7 @@ from models import (
     Vendor,
     Workspace,
 )
-from dotenv import load_dotenv
-
-
 from werkzeug.security import generate_password_hash
-
-load_dotenv()
 
 def seed_database():
     with app.app_context():
@@ -106,7 +105,7 @@ def seed_database():
         db.session.add(product)
         db.session.commit()
 
-        # 6. Add Recipe Items (12 Roses, 3 Eucalyptus, 1 Vase)
+        # 6. Add Recipe Items (12 Roses, 10 Salal, 1 Vase)
         pi1 = ProductIngredient(product_id=product.id, ingredient_id=i_rose.id, quantity=12, workspace_id=workspace_id)
         pi2 = ProductIngredient(product_id=product.id, ingredient_id=i_salal.id, quantity=10, workspace_id=workspace_id)
         pi3 = ProductIngredient(product_id=product.id, ingredient_id=i_vase.id, quantity=1, workspace_id=workspace_id)
@@ -124,4 +123,4 @@ def seed_database():
         print(f"Calculated Margin:       {product.profit_margin_percentage:.1f}%")
 
 if __name__ == '__main__':
-        seed_database()
+    seed_database()
